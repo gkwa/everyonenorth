@@ -1,0 +1,62 @@
+before:
+  hooks:
+  - go mod tidy
+  - go generate ./...
+builds:
+- env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  - windows
+  - darwin
+  main: main.go
+  goarch:
+  - amd64
+  binary: everyonenorth
+  id: everyonenorth
+  ldflags:
+  - -s -w
+    -X "github.com/gkwa/everyonenorth/version.Version={{ .Version }}"
+    -X "github.com/gkwa/everyonenorth/version.Date={{ .CommitDate }}"
+    -X "github.com/gkwa/everyonenorth/version.GoVersion={{ .Env.GOVERSION }}"
+    -X "github.com/gkwa/everyonenorth/version.ShortGitSHA={{ .ShortCommit }}"
+    -X "github.com/gkwa/everyonenorth/version.FullGitSHA={{ .FullCommit }}"
+archives:
+- format: tar.gz
+  name_template: |-
+    everyonenorth_ {{- title .Os }}_ {{- if eq .Arch "amd64" }}x86_64
+                               {{- else if eq .Arch "386" }}i386
+                               {{- else }}
+                               {{ .Arch }}
+                               {{ end }}
+                               {{- if .Arm }}v{{ .Arm }}{{ end }}
+  format_overrides:
+  - goos: windows
+    format: zip
+checksum:
+  name_template: checksums.txt
+snapshot:
+  name_template: '{{ incpatch .Version }}-next'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+brews:
+- name: everyonenorth
+  directory: Formula
+  homepage: https://github.com/gkwa/everyonenorth
+  repository:
+    owner: gkwa
+    name: homebrew-tools
+    branch: main
+scoops:
+- name: everyonenorth
+  homepage: https://github.com/gkwa/everyonenorth
+  description: "Description of the everyonenorth project"
+  license: MIT
+  repository:
+    owner: gkwa
+    name: scoop-bucket
+    branch: master
