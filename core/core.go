@@ -132,28 +132,69 @@ func writeMarkdownFile(filename string, authors []Author) error {
 }
 
 func getRepoName(cwd string) (string, error) {
-	cmd := exec.Command("git", "-C", cwd, "config", "--get", "remote.origin.url")
+	repoURL, err := getRepoURL(cwd)
+	if err != nil {
+		return "", err
+	}
+
+	if isSSHURL(repoURL) {
+		return getRepoNameFromSSHURL(repoURL)
+	}
+
+	return getRepoNameFromHTTPSURL(repoURL)
+}
+
+func getRepoURL(cwd string) (string, error) {
+	cmd := exec.Command(
+		"git",
+		"-C", cwd,
+		"config", "--get", "remote.origin.url",
+	)
 	output, exitCode, err := util.RunCommand(cmd, cwd)
 	if err != nil {
 		return "", fmt.Errorf("failed to get repository name: %v\nExit code: %d\nOutput: %s", err, exitCode, output)
 	}
 
-	repoURL := strings.TrimSpace(output)
+	return strings.TrimSpace(output), nil
+}
+
+func isSSHURL(repoURL string) bool {
+	return strings.HasPrefix(repoURL, "git@")
+}
+
+func getRepoNameFromSSHURL(repoURL string) (string, error) {
+	parts := strings.Split(repoURL, ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid SSH URL format: %s", repoURL)
+	}
+
+	repoPath := parts[1]
+	return extractRepoName(repoPath), nil
+}
+
+func getRepoNameFromHTTPSURL(repoURL string) (string, error) {
 	parsedURL, err := url.Parse(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse repository URL: %v", err)
 	}
 
 	repoPath := parsedURL.Path
+	return extractRepoName(repoPath), nil
+}
+
+func extractRepoName(repoPath string) string {
 	repoNameParts := strings.Split(repoPath, "/")
 	repoName := repoNameParts[len(repoNameParts)-1]
 	repoName = strings.TrimSuffix(repoName, ".git")
-
-	return repoName, nil
+	return repoName
 }
 
 func getCurrentBranch(gitDir string) (string, error) {
-	cmd := exec.Command("git", "-C", gitDir, "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := exec.Command(
+		"git",
+		"-C", gitDir,
+		"rev-parse", "--abbrev-ref", "HEAD",
+	)
 	output, exitCode, err := util.RunCommand(cmd, gitDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current branch: %v\nExit code: %d\nOutput: %s", err, exitCode, output)
